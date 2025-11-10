@@ -2,7 +2,15 @@ import { useState, useEffect } from "react";
 import "./Login.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import backgroundImage from "./assets/Background1.jpg";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { supabase } from "./supabaseClient";
+
+type LineupRow = {
+  NAME?: string | null;
+  POSITION?: string | null;
+  EMAIL?: string | null;
+  PROFILE?: string | null;
+};
 
 function App() {
   // initialize from localStorage so preference persists across reloads
@@ -15,6 +23,11 @@ function App() {
     }
   });
   const [loading, setLoading] = useState(true);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   // persist darkMode whenever it changes
   useEffect(() => {
@@ -31,21 +44,125 @@ function App() {
     return () => clearTimeout(t);
   }, []);
 
+  // Handle sign-in and LINEUP lookup
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError(null);
+    setAuthLoading(true);
+    try {
+      const res = await supabase.auth.signInWithPassword({ email, password });
+      if (res.error) throw res.error;
+
+      // After successful sign in, check LINEUP table for the user's info
+      const rowResult = await supabase
+        .from("LINEUP")
+        .select("NAME,POSITION,EMAIL,PROFILE")
+        .eq("EMAIL", email)
+        .maybeSingle();
+
+      const row = rowResult.data as LineupRow | null;
+      if (rowResult.error) {
+        // non-fatal: warn and continue
+        // eslint-disable-next-line no-console
+        console.warn("LINEUP lookup error", rowResult.error);
+      }
+
+      if (row) {
+        // Normalize position once
+        const position = row.POSITION
+          ? String(row.POSITION).toLowerCase().trim()
+          : "";
+
+        // If position is "member" (case-insensitive) deny access
+        if (position === "member") {
+          try {
+            localStorage.removeItem("soccom-user-name");
+            localStorage.removeItem("soccom-choir-group");
+            localStorage.removeItem("soccom-profile-url");
+          } catch {}
+          setAuthError(
+            "Access restricted: members are not allowed to use this form."
+          );
+          try {
+            await supabase.auth.signOut();
+          } catch {}
+          setAuthLoading(false);
+          return;
+        }
+
+        // Only allow users with position 'choir' to proceed to the Choir page
+        if (position !== "choir") {
+          try {
+            localStorage.removeItem("soccom-user-name");
+            localStorage.removeItem("soccom-choir-group");
+            localStorage.removeItem("soccom-profile-url");
+          } catch {}
+          setAuthError(
+            "Access restricted: only users with the 'choir' role can access this form."
+          );
+          try {
+            await supabase.auth.signOut();
+          } catch {}
+          setAuthLoading(false);
+          return;
+        }
+
+        // Persist name and choir group for choir users
+        if (row.NAME) localStorage.setItem("soccom-user-name", row.NAME);
+        if (row.POSITION)
+          localStorage.setItem("soccom-choir-group", row.POSITION);
+
+        // Resolve profile: if it's already a URL use it, else try storage buckets
+        const profileField = row.PROFILE;
+        if (profileField) {
+          let resolved = profileField;
+          if (!/^https?:\/\//i.test(profileField)) {
+            // try common buckets
+            const buckets = ["profiles", "avatars", "public", "lineup"];
+            for (const b of buckets) {
+              try {
+                const pData = supabase.storage
+                  .from(b)
+                  .getPublicUrl(profileField);
+                if ((pData as any)?.data?.publicUrl) {
+                  resolved = (pData as any).data.publicUrl;
+                  break;
+                }
+              } catch (e) {
+                // ignore and continue
+              }
+            }
+          }
+          localStorage.setItem("soccom-profile-url", resolved);
+        }
+
+        // navigate to choir page
+        navigate("/choir");
+      }
+    } catch (err: any) {
+      setAuthError(err?.message || "Sign in failed");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
   return (
     <>
       {loading && (
-        <div className="loading-overlay">
-          <div className="loading-box text-center">
-            <h2 className="loading-title">Welcome to SOCCOM Website</h2>
-            <div
-              className="spinner-border text-light"
-              role="status"
-              aria-hidden="true"
-            >
-              <span className="visually-hidden">Loading...</span>
-            </div>
-          </div>
-        </div>
+        //
+        // <div className="loading-overlay">
+        //   <div className="loading-box text-center">
+        //     <h2 className="loading-title">Welcome to SOCCOM Website</h2>
+        //     <div
+        //       className="spinner-border text-light"
+        //       role="status"
+        //       aria-hidden="true"
+        //     >
+        //       <span className="visually-hidden">Loading...</span>
+        //     </div>
+        //   </div>
+        // </div>
+        <div className="body"></div>
       )}
       <div
         className={`body d-flex justify-content-center align-items-center vh-100 theme-${
@@ -73,8 +190,6 @@ function App() {
             )}
           </button>
         </div>
-
-        {/* Use Bootstrap grid to control responsive width (no custom media queries) */}
         <div className="container">
           <div className="row justify-content-center w-100">
             <div className="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-5">
@@ -106,9 +221,9 @@ function App() {
 
                   {/* scrollable form wrapper uses Bootstrap overflow-auto */}
                   <div className="form-scroll overflow-auto">
-                    <form>
+                    <form onSubmit={handleSubmit}>
                       <div className="mb-3 text-start">
-                        <label htmlFor="email" className="form-label fw-bold">
+                        <label htmlFor="email" className="form-lsabel fw-bold">
                           Email Address
                         </label>
                         <div className="input-group">
@@ -128,6 +243,9 @@ function App() {
                             className="form-control"
                             id="email"
                             placeholder="Enter your email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
                           />
                         </div>
                       </div>
@@ -152,6 +270,9 @@ function App() {
                             className="form-control"
                             id="password"
                             placeholder="Enter your password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
                           />
                           <button
                             type="button"
@@ -168,6 +289,12 @@ function App() {
                         </div>
                       </div>
 
+                      {authError && (
+                        <div className="alert alert-danger small">
+                          {authError}
+                        </div>
+                      )}
+
                       <div className="d-flex justify-content-between align-items-center mb-3">
                         <div className="form-check">
                           <input
@@ -183,7 +310,6 @@ function App() {
                           </label>
                         </div>
 
-                        {/* use Link to new forgot route */}
                         <Link to="/forgot" className="text-decoration-none">
                           Forgot password?
                         </Link>
@@ -192,13 +318,24 @@ function App() {
                       <button
                         type="submit"
                         className="btn btn-primary w-100 mb-3"
+                        disabled={authLoading}
                       >
-                        <i className="bi bi-box-arrow-in-right me-2" /> Sign In
+                        {authLoading ? (
+                          "Signing in..."
+                        ) : (
+                          <>
+                            <i className="bi bi-box-arrow-in-right me-2" /> Sign
+                            In
+                          </>
+                        )}
                       </button>
 
-                      <a href="#" className="text-decoration-none d-block mb-3">
+                      <Link
+                        to="/trouble"
+                        className="text-decoration-none d-block mb-3"
+                      >
                         Trouble to Log in? Contact Us
-                      </a>
+                      </Link>
 
                       <p
                         className={`small text-center  ${

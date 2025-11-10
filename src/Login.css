@@ -22,15 +22,13 @@
     --card-bg: rgba(255, 255, 255, 0.92);
     --text-color: #212529;
     --bg-overlay: rgba(255, 255, 255, 0.5);
-
+    --bi: #0d6efd;
 }
 
 .theme-dark {
     --card-bg: rgba(33, 37, 41, 0.9);
     --text-color: #f8f9fa;
     --bg-overlay: rgba(0, 0, 0, 0.45);
-    --muted: #ffffff;
-
 }
 
 .body {
@@ -184,4 +182,30 @@
 /* keep loading overlay above everything */
 .loading-overlay {
     z-index: 3000;
+}
+
+/* Professional table styles */
+.card-professional .table {
+    --bs-table-hover-bg: rgba(0, 0, 0, 0.02);
+    --bs-table-hover-color: inherit;
+    font-size: 0.9rem;
+}
+
+.card-professional .table th {
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+    color: #6c757d;
+    border-top: none;
+}
+
+.card-professional .table td {
+    padding-top: 0.8rem;
+    padding-bottom: 0.8rem;
+    vertical-align: middle;
+}
+
+.card-professional .btn-group-sm>.btn {
+    padding: 0.25rem 0.5rem;
 }
