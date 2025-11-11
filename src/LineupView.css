@@ -1,0 +1,234 @@
+/* LineupView Page Styles */
+.lineup-view-page {
+    min-height: 100vh;
+    background: #f8f9fa;
+    padding: 2rem 0;
+}
+
+.lineup-container {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.lineup-page-header {
+    background: white;
+    border-radius: 12px;
+    padding: 2rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.lineup-title {
+    font-size: 1.75rem;
+    font-weight: 600;
+    color: #1a1a1a;
+}
+
+.user-info-bar {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    margin-top: 1.5rem;
+}
+
+.user-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: #e9ecef;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.user-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.user-avatar i {
+    font-size: 2rem;
+    color: #6c757d;
+}
+
+/* Parts List */
+.lineup-parts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.lineup-part-card {
+    background: white;
+    border-radius: 10px;
+    padding: 1.25rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    transition: box-shadow 0.2s ease;
+}
+
+.lineup-part-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.part-header {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+}
+
+.part-number {
+    min-width: 32px;
+    height: 32px;
+    background: #0d6efd;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+}
+
+.part-content {
+    flex: 1;
+}
+
+.part-label {
+    color: #0d6efd;
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.part-song-title {
+    color: #495057;
+    font-size: 0.95rem;
+    margin-bottom: 0.5rem;
+}
+
+.part-time {
+    white-space: nowrap;
+    font-size: 0.85rem;
+}
+
+.btn-link-custom {
+    background: none;
+    border: none;
+    color: #0d6efd;
+    padding: 0;
+    font-size: 0.9rem;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-top: 0.25rem;
+}
+
+.btn-link-custom:hover {
+    text-decoration: underline;
+}
+
+.file-link {
+    color: #0d6efd;
+    text-decoration: none;
+    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.file-link:hover {
+    text-decoration: underline;
+}
+
+.lyrics-section {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1rem;
+    border-left: 3px solid #0d6efd;
+}
+
+.lyrics-content {
+    color: #495057;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .lineup-view-page {
+        padding: 1rem 0;
+    }
+
+    .lineup-page-header {
+        padding: 1.25rem;
+    }
+
+    .lineup-title {
+        font-size: 1.35rem;
+    }
+
+    .lineup-page-header .d-flex.justify-content-between {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .user-info-bar {
+        flex-direction: column;
+        gap: 0.75rem;
+        text-align: left;
+    }
+
+    .part-time {
+        margin-top: 0.5rem;
+        display: block;
+    }
+
+    .lineup-part-card {
+        padding: 1rem;
+    }
+}
+
+/* Completion Section */
+.completion-section .card {
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.completion-section .card-title {
+    color: #1a1a1a;
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.completion-section .form-check-input:checked {
+    background-color: #198754;
+    border-color: #198754;
+}
+
+.completion-section .form-check-input {
+    width: 3rem;
+    height: 1.5rem;
+    cursor: pointer;
+}
+
+.completion-section .form-check-label {
+    cursor: pointer;
+    margin-left: 0.5rem;
+}
+
+.completion-section textarea.form-control {
+    border-radius: 8px;
+    resize: vertical;
+}
+
+.completion-section .btn-success {
+    border-radius: 8px;
+    padding: 0.5rem 1.5rem;
+    font-weight: 500;
+}

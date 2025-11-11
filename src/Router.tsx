@@ -4,6 +4,8 @@ import Home from "./Login";
 import ForgotPassword from "./ForgotPassword";
 import Trouble from "./Trouble";
 import Choir from "./Choir";
+import Soccom from "./soccom";
+import LineupView from "./LineupView";
 
 const AppRouter: React.FC = () => (
   <Router>
@@ -11,7 +13,9 @@ const AppRouter: React.FC = () => (
       <Route path="/" element={<Home />} />
       <Route path="/forgot" element={<ForgotPassword />} />
       <Route path="/trouble" element={<Trouble />} />
-      <Route path="/choir" element={<Choir />} /> {/* added */}
+      <Route path="/choir" element={<Choir />} />
+      <Route path="/soccom" element={<Soccom />} />
+      <Route path="/lineup/:id" element={<LineupView />} />
     </Routes>
   </Router>
 );

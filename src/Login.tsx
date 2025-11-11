@@ -23,6 +23,7 @@ function App() {
     }
   });
   const [loading, setLoading] = useState(true);
+  const [navigating, setNavigating] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
@@ -90,54 +91,90 @@ function App() {
           return;
         }
 
-        // Only allow users with position 'choir' to proceed to the Choir page
-        if (position !== "choir") {
-          try {
-            localStorage.removeItem("soccom-user-name");
-            localStorage.removeItem("soccom-choir-group");
-            localStorage.removeItem("soccom-profile-url");
-          } catch {}
-          setAuthError(
-            "Access restricted: only users with the 'choir' role can access this form."
-          );
-          try {
-            await supabase.auth.signOut();
-          } catch {}
-          setAuthLoading(false);
+        // Handle soccom users -> /soccom, choir users -> /choir
+        if (position === "soccom") {
+          if (row.NAME) localStorage.setItem("soccom-user-name", row.NAME);
+          if (row.POSITION)
+            localStorage.setItem("soccom-choir-group", row.POSITION);
+
+          // Resolve profile for soccom users as well
+          const profileField = row.PROFILE;
+          if (profileField) {
+            let resolved = profileField;
+            if (!/^https?:\/\//i.test(profileField)) {
+              const buckets = ["profiles", "avatars", "public", "lineup"];
+              for (const b of buckets) {
+                try {
+                  const pData = supabase.storage
+                    .from(b)
+                    .getPublicUrl(profileField);
+                  if ((pData as any)?.data?.publicUrl) {
+                    resolved = (pData as any).data.publicUrl;
+                    break;
+                  }
+                } catch (e) {
+                  // ignore and continue
+                }
+              }
+            }
+            localStorage.setItem("soccom-profile-url", resolved);
+          }
+
+          setNavigating(true);
+          setTimeout(() => navigate("/soccom"), 2300);
           return;
         }
 
-        // Persist name and choir group for choir users
-        if (row.NAME) localStorage.setItem("soccom-user-name", row.NAME);
-        if (row.POSITION)
-          localStorage.setItem("soccom-choir-group", row.POSITION);
+        if (position === "choir") {
+          // Persist name and choir group for choir users
+          if (row.NAME) localStorage.setItem("soccom-user-name", row.NAME);
+          if (row.POSITION)
+            localStorage.setItem("soccom-choir-group", row.POSITION);
 
-        // Resolve profile: if it's already a URL use it, else try storage buckets
-        const profileField = row.PROFILE;
-        if (profileField) {
-          let resolved = profileField;
-          if (!/^https?:\/\//i.test(profileField)) {
-            // try common buckets
-            const buckets = ["profiles", "avatars", "public", "lineup"];
-            for (const b of buckets) {
-              try {
-                const pData = supabase.storage
-                  .from(b)
-                  .getPublicUrl(profileField);
-                if ((pData as any)?.data?.publicUrl) {
-                  resolved = (pData as any).data.publicUrl;
-                  break;
+          // Resolve profile: if it's already a URL use it, else try storage buckets
+          const profileField = row.PROFILE;
+          if (profileField) {
+            let resolved = profileField;
+            if (!/^https?:\/\//i.test(profileField)) {
+              // try common buckets
+              const buckets = ["profiles", "avatars", "public", "lineup"];
+              for (const b of buckets) {
+                try {
+                  const pData = supabase.storage
+                    .from(b)
+                    .getPublicUrl(profileField);
+                  if ((pData as any)?.data?.publicUrl) {
+                    resolved = (pData as any).data.publicUrl;
+                    break;
+                  }
+                } catch (e) {
+                  // ignore and continue
                 }
-              } catch (e) {
-                // ignore and continue
               }
             }
+            localStorage.setItem("soccom-profile-url", resolved);
           }
-          localStorage.setItem("soccom-profile-url", resolved);
+
+          // navigate to choir page with loading screen
+          setNavigating(true);
+          setTimeout(() => navigate("/choir"), 2300);
+          return;
         }
 
-        // navigate to choir page
-        navigate("/choir");
+        // Otherwise deny access for any other positions
+        try {
+          localStorage.removeItem("soccom-user-name");
+          localStorage.removeItem("soccom-choir-group");
+          localStorage.removeItem("soccom-profile-url");
+        } catch {}
+        setAuthError(
+          "Access restricted: only users with the 'choir' or 'soccom' roles can access this system."
+        );
+        try {
+          await supabase.auth.signOut();
+        } catch {}
+        setAuthLoading(false);
+        return;
       }
     } catch (err: any) {
       setAuthError(err?.message || "Sign in failed");
@@ -148,21 +185,25 @@ function App() {
 
   return (
     <>
-      {loading && (
-        //
-        // <div className="loading-overlay">
-        //   <div className="loading-box text-center">
-        //     <h2 className="loading-title">Welcome to SOCCOM Website</h2>
-        //     <div
-        //       className="spinner-border text-light"
-        //       role="status"
-        //       aria-hidden="true"
-        //     >
-        //       <span className="visually-hidden">Loading...</span>
-        //     </div>
-        //   </div>
-        // </div>
-        <div className="body"></div>
+      {(loading || navigating) && (
+        <div className="welcome-screen">
+          <div className="welcome-content">
+            <div className="logo-container">
+              <div className="logo-circle">
+                <i className="bi bi-bank logo-icon"></i>
+              </div>
+              <div className="pulse-ring"></div>
+              <div className="pulse-ring-delayed"></div>
+            </div>
+            <h1 className="welcome-title">SOCCOM</h1>
+            <p className="welcome-subtitle">Social Communication Commission</p>
+            <div className="loading-dots">
+              <span className="dot"></span>
+              <span className="dot"></span>
+              <span className="dot"></span>
+            </div>
+          </div>
+        </div>
       )}
       <div
         className={`body d-flex justify-content-center align-items-center vh-100 theme-${

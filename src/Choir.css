@@ -4,6 +4,18 @@
     padding: 2rem;
 }
 
+@media (max-width: 576px) {
+    .choir-container {
+        padding: 0.75rem;
+    }
+}
+
+@media (min-width: 577px) and (max-width: 768px) {
+    .choir-container {
+        padding: 1rem;
+    }
+}
+
 .mass-card {
     background: #ffffff;
     border: none;
@@ -56,10 +68,36 @@
     background: #fff;
 }
 
+@media (max-width: 576px) {
+    .mass-header {
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+    }
+}
+
+@media (min-width: 577px) and (max-width: 768px) {
+    .mass-header {
+        padding: 1rem 0;
+        margin-bottom: 1.5rem;
+    }
+}
+
 .mass-header h5 {
     font-size: 1.1rem;
     font-weight: 600;
     color: #344767;
+}
+
+@media (max-width: 576px) {
+    .mass-header h5 {
+        font-size: 0.95rem;
+    }
+}
+
+@media (min-width: 577px) and (max-width: 768px) {
+    .mass-header h5 {
+        font-size: 1rem;
+    }
 }
 
 .form-control {
@@ -72,24 +110,209 @@
     border-color: #dee2e6;
 }
 
+/* Profile section - keep profile and name grouped */
+.mass-header .d-flex.align-items-center.ms-3 {
+    flex-shrink: 0;
+    min-width: fit-content;
+    display: flex;
+    flex-direction: row-reverse; /* Profile icon/image after text */
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.mass-header .d-flex.align-items-center.ms-3>* {
+    flex-shrink: 0;
+}
+
+.mass-header .d-flex.align-items-center.ms-3 .ms-2 {
+    margin-left: 0 !important;
+    margin-right: 0.5rem !important;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.mass-header .ms-3 {
+    order: 999;
+    /* Always keep profile section last */
+}
+
+@media (max-width: 768px) {
+    .mass-header .d-flex.align-items-center.ms-3 {
+        width: auto !important;
+        margin-left: 0 !important;
+        margin-top: 0.75rem;
+        justify-content: flex-start;
+        align-self: flex-start;
+        flex-direction: row-reverse !important; /* Keep profile after text on mobile too */
+    }
+
+    .mass-header .d-flex.align-items-center.ms-3 .ms-2 {
+        margin-left: 0 !important;
+        margin-right: 0.5rem !important;
+        margin-top: 0 !important;
+    }
+}
+
 /* Top selectors */
 .choir-select {
     min-width: 160px;
     border-color: #dee2e6;
 }
 
+@media (max-width: 576px) {
+    .choir-select {
+        min-width: 100%;
+        font-size: 0.8rem;
+    }
+}
+
+@media (min-width: 577px) and (max-width: 768px) {
+    .choir-select {
+        min-width: 140px;
+        font-size: 0.85rem;
+    }
+}
+
 .choir-date {
     width: 150px;
 }
 
+@media (max-width: 576px) {
+    .choir-date {
+        width: 100%;
+    }
+}
+
+@media (min-width: 577px) and (max-width: 768px) {
+    .choir-date {
+        width: 130px;
+    }
+}
+
 /* Responsive adjustments */
-@media (max-width: 768px) {
+@media (max-width: 576px) {
     .mass-content {
-        padding: 1rem;
+        padding: 0.5rem;
     }
 
     .song-card {
         margin-bottom: 0.5rem;
+    }
+
+    .mass-header .d-flex {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 0.75rem !important;
+    }
+
+    .mass-header .d-flex>div {
+        width: 100%;
+    }
+
+    .choir-select,
+    .form-control {
+        width: 100%;
+        font-size: 0.8rem;
+    }
+
+    .ms-2,
+    .ms-3 {
+        margin-left: 0 !important;
+        margin-top: 0.5rem;
+    }
+
+    /* Make buttons stack vertically on small screens */
+    .btn {
+        font-size: 0.8rem;
+        padding: 0.4rem 0.8rem;
+    }
+
+    .btn-sm {
+        font-size: 0.75rem;
+        padding: 0.3rem 0.6rem;
+    }
+
+    /* Profile image adjustments */
+    img.rounded-circle {
+        width: 40px !important;
+        height: 40px !important;
+        flex-shrink: 0;
+    }
+
+    /* Keep profile section together */
+    .mass-header .d-flex.align-items-center.ms-3 {
+        display: flex !important;
+        flex-direction: row-reverse !important; /* Profile icon/image after text */
+        align-items: center !important;
+        gap: 0.5rem !important;
+        width: auto !important;
+    }
+
+    .mass-header .d-flex.align-items-center.ms-3 .ms-2 {
+        margin-left: 0 !important;
+        margin-right: 0.5rem !important;
+        margin-top: 0 !important;
+    }
+
+    /* Song section adjustments */
+    .song-section {
+        padding: 0.5rem;
+        gap: 0.5rem;
+    }
+
+    .song-icon {
+        width: 32px;
+        height: 32px;
+        font-size: 1rem;
+    }
+
+    .song-title {
+        font-size: 0.8rem;
+    }
+
+    /* Form inputs */
+    input[type="text"],
+    input[type="time"],
+    input[type="date"],
+    textarea {
+        font-size: 0.8rem !important;
+    }
+
+    /* File drop zone */
+    .file-drop-zone {
+        padding: 0.5rem;
+    }
+
+    .file-drop-zone .drop-message {
+        font-size: 0.75rem;
+    }
+
+    /* Modal adjustments */
+    .modal-dialog {
+        margin: 0.5rem;
+    }
+
+    .modal-header h5 {
+        font-size: 0.95rem;
+    }
+
+    .table {
+        font-size: 0.75rem;
+    }
+
+    .table th,
+    .table td {
+        padding: 0.5rem;
+    }
+}
+
+@media (min-width: 577px) and (max-width: 768px) {
+    .mass-content {
+        padding: 0.75rem;
+    }
+
+    .song-card {
+        margin-bottom: 0.75rem;
     }
 
     .mass-header .d-flex {
@@ -105,11 +328,91 @@
     .choir-select,
     .form-control {
         width: 100%;
+        font-size: 0.875rem;
     }
 
-    .ms-2 {
+    .ms-2,
+    .ms-3 {
         margin-left: 0 !important;
         margin-top: 0.5rem;
+    }
+
+    /* Button adjustments */
+    .btn {
+        font-size: 0.875rem;
+    }
+
+    .btn-sm {
+        font-size: 0.8rem;
+    }
+
+    /* Profile image adjustments */
+    img.rounded-circle {
+        width: 48px !important;
+        height: 48px !important;
+        flex-shrink: 0;
+    }
+
+    /* Keep profile section together */
+    .mass-header .d-flex.align-items-center.ms-3 {
+        display: flex !important;
+        flex-direction: row-reverse !important; /* Profile icon/image after text */
+        align-items: center !important;
+        gap: 0.5rem !important;
+        width: auto !important;
+    }
+
+    .mass-header .d-flex.align-items-center.ms-3 .ms-2 {
+        margin-left: 0 !important;
+        margin-right: 0.5rem !important;
+        margin-top: 0 !important;
+    }
+
+    /* Song section adjustments */
+    .song-section {
+        padding: 0.625rem;
+        gap: 0.75rem;
+    }
+
+    .song-icon {
+        width: 36px;
+        height: 36px;
+        font-size: 1.1rem;
+    }
+
+    .song-title {
+        font-size: 0.825rem;
+    }
+
+    /* Form inputs */
+    input[type="text"],
+    input[type="time"],
+    input[type="date"],
+    textarea {
+        font-size: 0.875rem !important;
+    }
+
+    /* File drop zone */
+    .file-drop-zone {
+        padding: 0.625rem;
+    }
+
+    .file-drop-zone .drop-message {
+        font-size: 0.8rem;
+    }
+
+    /* Modal adjustments */
+    .modal-dialog {
+        margin: 0.75rem;
+    }
+
+    .table {
+        font-size: 0.825rem;
+    }
+
+    .table th,
+    .table td {
+        padding: 0.625rem;
     }
 }
 
@@ -118,9 +421,39 @@
     margin-top: 0.5rem;
 }
 
+@media (max-width: 576px) {
+    .file-section {
+        margin-top: 0.4rem;
+    }
+
+    .file-section small {
+        font-size: 0.7rem;
+    }
+
+    .file-section .border {
+        padding: 0.4rem !important;
+    }
+}
+
+@media (min-width: 577px) and (max-width: 768px) {
+    .file-section {
+        margin-top: 0.45rem;
+    }
+
+    .file-section small {
+        font-size: 0.75rem;
+    }
+}
+
 .file-section .form-control {
     font-size: 0.875rem;
     border-color: #dee2e6;
+}
+
+@media (max-width: 576px) {
+    .file-section .form-control {
+        font-size: 0.75rem;
+    }
 }
 
 .file-section .input-group-text {
@@ -141,8 +474,20 @@
     padding: 0.25rem 0.5rem;
 }
 
+@media (max-width: 576px) {
+    .file-section .btn-group .btn {
+        padding: 0.2rem 0.4rem;
+    }
+}
+
 .file-section .btn-group .btn i {
     font-size: 0.875rem;
+}
+
+@media (max-width: 576px) {
+    .file-section .btn-group .btn i {
+        font-size: 0.75rem;
+    }
 }
 
 /* Drag and drop styles */
@@ -155,6 +500,21 @@
     cursor: pointer;
 }
 
+@media (max-width: 576px) {
+    .file-drop-zone {
+        padding: 0.5rem;
+        border-radius: 4px;
+        border-width: 1.5px;
+    }
+}
+
+@media (min-width: 577px) and (max-width: 768px) {
+    .file-drop-zone {
+        padding: 0.625rem;
+        border-radius: 5px;
+    }
+}
+
 .file-drop-zone.dragging {
     border-color: var(--primary);
     background: rgba(13, 110, 253, 0.04);
@@ -164,6 +524,18 @@
     color: #6c757d;
     font-size: 0.875rem;
     text-align: center;
+}
+
+@media (max-width: 576px) {
+    .file-drop-zone .drop-message {
+        font-size: 0.7rem;
+    }
+}
+
+@media (min-width: 577px) and (max-width: 768px) {
+    .file-drop-zone .drop-message {
+        font-size: 0.8rem;
+    }
 }
 
 /* Improved responsive layout */
@@ -190,6 +562,38 @@
     .choir-date {
         width: 100%;
     }
+
+    /* Additional utility class adjustments */
+    .gap-2 {
+        gap: 0.4rem !important;
+    }
+
+    .gap-3 {
+        gap: 0.5rem !important;
+    }
+
+    .px-4 {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+
+    .py-5 {
+        padding-top: 2rem !important;
+        padding-bottom: 2rem !important;
+    }
+
+    /* Notification toast */
+    .alert {
+        font-size: 0.8rem !important;
+        padding: 0.6rem !important;
+        min-width: 250px !important;
+    }
+
+    /* Badge sizing */
+    .badge {
+        font-size: 0.7rem;
+        padding: 0.25rem 0.4rem;
+    }
 }
 
 @media (min-width: 577px) and (max-width: 768px) {
@@ -200,11 +604,153 @@
     .mass-header {
         padding: 1rem;
     }
+
+    .song-section {
+        padding: 0.625rem;
+        margin-bottom: 0.625rem;
+    }
+
+    .file-section {
+        margin-top: 0.5rem;
+    }
+
+    .choir-select,
+    .choir-date {
+        width: 100%;
+    }
+
+    /* Additional utility class adjustments */
+    .gap-2 {
+        gap: 0.6rem !important;
+    }
+
+    .gap-3 {
+        gap: 0.75rem !important;
+    }
+
+    /* Notification toast */
+    .alert {
+        font-size: 0.85rem !important;
+        padding: 0.7rem !important;
+        min-width: 280px !important;
+    }
+
+    /* Badge sizing */
+    .badge {
+        font-size: 0.75rem;
+        padding: 0.3rem 0.5rem;
+    }
 }
 
 @media (min-width: 769px) and (max-width: 992px) {
     .col-md-6 {
         flex: 0 0 100%;
         max-width: 100%;
+    }
+}
+
+/* Large mobile specific (769px - 991px) */
+@media (min-width: 769px) and (max-width: 991px) {
+    .song-section {
+        padding: 0.75rem;
+    }
+
+    .song-icon {
+        width: 38px;
+        height: 38px;
+    }
+
+    .form-control {
+        font-size: 0.875rem;
+    }
+}
+
+/* Landscape mobile optimization */
+@media (max-width: 768px) and (orientation: landscape) {
+    .choir-container {
+        padding: 0.5rem;
+    }
+
+    .mass-header {
+        padding: 0.5rem 0;
+        margin-bottom: 0.75rem;
+    }
+
+    .song-section {
+        padding: 0.4rem;
+        gap: 0.4rem;
+    }
+
+    .modal-dialog {
+        max-height: 90vh;
+    }
+}
+
+/* Touch target improvements for mobile */
+@media (max-width: 768px) {
+
+    button,
+    .btn,
+    a.btn,
+    input[type="file"]+label {
+        min-height: 44px;
+        /* iOS recommended touch target */
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .btn-sm {
+        min-height: 36px;
+    }
+
+    /* Improve tap targets for file operations */
+    .file-drop-zone {
+        min-height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Better spacing for stacked elements */
+    .d-flex.flex-column>*+* {
+        margin-top: 0.5rem;
+    }
+}
+
+/* Prevent text overflow on small screens */
+@media (max-width: 576px) {
+    .text-truncate {
+        max-width: 150px;
+    }
+
+    .small,
+    small {
+        font-size: 0.7rem;
+    }
+
+    /* Improve readability */
+    body {
+        font-size: 14px;
+    }
+
+    h5 {
+        font-size: 1rem;
+    }
+
+    h6 {
+        font-size: 0.875rem;
+    }
+}
+
+/* Container width optimization for mid-range mobiles */
+@media (min-width: 577px) and (max-width: 768px) {
+    .container-fluid {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+
+    .text-truncate {
+        max-width: 200px;
     }
 }

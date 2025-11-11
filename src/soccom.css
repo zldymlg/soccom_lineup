@@ -1,0 +1,110 @@
+:root {
+    --card-radius: .75rem;
+}
+
+.soccom-header {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    padding-bottom: .75rem;
+}
+
+.avatar img {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
+}
+
+.avatar-fallback {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #eef2ff;
+    color: #3b82f6;
+    font-size: 20px;
+}
+
+.user-meta .user-name {
+    font-weight: 600;
+}
+
+.header-center {
+    min-width: 320px;
+}
+
+.header-right .nav-link {
+    color: #6b7280;
+    margin-left: 0.75rem;
+}
+
+.header-right .nav-link.active {
+    color: #0d6efd;
+    font-weight: 600;
+}
+
+.card-dashboard {
+    border-radius: var(--card-radius);
+}
+
+.card-dashboard .card-body {
+    min-height: 150px;
+}
+
+.icon-circle {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    background: #f8fafc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #0d6efd;
+    font-size: 18px;
+}
+
+.status-badge {
+    padding: .35rem .6rem;
+    border-radius: 999px;
+    font-size: .75rem;
+    align-self: flex-start;
+}
+
+.dashboard-grid {
+    margin-top: 12px;
+}
+
+/* Date Picker Styles */
+.form-label {
+    margin-bottom: 0.5rem;
+    font-size: 0.95rem;
+}
+
+input[type="date"].form-control {
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.375rem;
+    border: 1px solid #ced4da;
+}
+
+input[type="date"].form-control:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.input-group .btn-outline-secondary {
+    border-left: 0;
+}
+
+.input-group .btn-outline-secondary:hover {
+    background-color: #dc3545;
+    border-color: #dc3545;
+    color: white;
+}
+
+@media (max-width:768px) {
+    .header-center {
+        display: none;
+    }
+}
