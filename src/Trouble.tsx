@@ -27,7 +27,7 @@ const Trouble: React.FC = () => {
   const [category, setCategory] = useState("");
   const [details, setDetails] = useState("");
   const [priority, setPriority] = useState<"Low" | "Normal" | "High">("Normal");
-  const [file, setFile] = useState<File | null>(null);
+  const [_file, setFile] = useState<File | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   const submit = (e: React.FormEvent) => {

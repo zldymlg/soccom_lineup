@@ -84,7 +84,7 @@ const LineupView: React.FC = () => {
             // eslint-disable-next-line no-console
             console.warn(
               "Lineup fetch error (lineupinfo)",
-              (res2 as any).error
+              (res2 as any).error,
             );
           }
           data = (res2 as any).data || null;
@@ -103,18 +103,113 @@ const LineupView: React.FC = () => {
     };
   }, [id]);
 
+  const getFilesFromStorageField = (field: any) => {
+    if (!field) return [] as string[];
+    if (Array.isArray(field)) return field as string[];
+    if (typeof field === "string") {
+      try {
+        const parsed = JSON.parse(field);
+        if (Array.isArray(parsed)) return parsed;
+        if (typeof parsed === "string") return [parsed];
+      } catch (e) {
+        return [field];
+      }
+    }
+    return [] as string[];
+  };
+
+  const buildPrintableHTML = (data: any) => {
+    const title = data?.NAME || data?.name || "Mass Lineup";
+    const date = formatDate(data?.date || data?.scheduled_at) || "";
+    let html = `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>
+      <style>body{font-family:Arial,Helvetica,sans-serif;padding:20px}h1{font-size:20px}h2{font-size:16px}.part{margin-bottom:12px}.label{font-weight:700}</style>
+      </head><body>`;
+    html += `<h1>${title}</h1><h2>${date}</h2>`;
+    html += `<div>`;
+    massParts.forEach((p) => {
+      const base = findField(data, p.col) || "";
+      const lyrics = findField(data, `${p.col}Lyrics`) || "";
+      html += `<div class="part"><div class="label">${p.label}</div><div>${base}</div>`;
+      if (lyrics) html += `<pre style="white-space:pre-wrap">${lyrics}</pre>`;
+      html += `</div>`;
+    });
+    html += `</div></body></html>`;
+    return html;
+  };
+
+  const exportAsPDF = () => {
+    const html = buildPrintableHTML(row);
+    const w = window.open("", "_blank");
+    if (!w) return;
+    w.document.write(html);
+    w.document.close();
+    setTimeout(() => {
+      try {
+        w.focus();
+        w.print();
+      } catch (e) {
+        // ignore
+      }
+    }, 500);
+  };
+
+  const exportAsWord = () => {
+    const html = buildPrintableHTML(row);
+    const blob = new Blob([html], { type: "application/msword" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `lineup-${id || "export"}.doc`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
   const toggleLyrics = (partId: string) => {
     setExpandedParts((prev) => ({ ...prev, [partId]: !prev[partId] }));
   };
 
   const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return "";
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-    });
+    // Normalize common SQL date formats (YYYY-MM-DD, YYYY-MM-DD HH:MM:SS, or ISO)
+    try {
+      if (typeof dateString === "string") {
+        // Match YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS or with space
+        const m = dateString.match(
+          /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?)?/,
+        );
+        if (m) {
+          const y = Number(m[1]);
+          const mo = String(Number(m[2])).padStart(2, "0");
+          const d = String(Number(m[3])).padStart(2, "0");
+          return `${y}-${mo}-${d}`;
+        }
+      }
+      const date = new Date(dateString as any);
+      if (isNaN(date.getTime())) return "";
+      const y = date.getFullYear();
+      const mo = String(date.getMonth() + 1).padStart(2, "0");
+      const d = String(date.getDate()).padStart(2, "0");
+      return `${y}-${mo}-${d}`;
+    } catch (e) {
+      return "";
+    }
+  };
+
+  const formatTimeString = (timeString: string | null | undefined) => {
+    if (!timeString) return "";
+    // If already a readable time (contains AM/PM), return as-is
+    if (/AM|PM/i.test(timeString)) return timeString;
+    // Match HH:MM or HH:MM:SS
+    const m = String(timeString).match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+    if (m) {
+      const hh = String(Number(m[1])).padStart(2, "0");
+      const mm = String(Number(m[2])).padStart(2, "0");
+      const ss = m[3] ? String(Number(m[3])).padStart(2, "0") : "00";
+      return `${hh}:${mm}:${ss}`;
+    }
+    return String(timeString);
   };
 
   return (
@@ -129,17 +224,17 @@ const LineupView: React.FC = () => {
                 <span className="text-muted small">ChoirMaster</span>
               </div>
               <h2 className="lineup-title mb-1">
-                Mass Lineup - {formatDate(row?.scheduled_at || row?.created_at)}
+                Mass Lineup - {formatDate(row?.date || row?.scheduled_at)}
               </h2>
               <p className="text-muted mb-0">
                 Complete liturgical music program with lyrics
               </p>
             </div>
             <div className="d-flex gap-2">
-              <button className="btn btn-danger btn-sm">
+              <button className="btn btn-danger btn-sm" onClick={exportAsPDF}>
                 <i className="bi bi-file-pdf"></i> Export PDF
               </button>
-              <button className="btn btn-dark btn-sm">
+              <button className="btn btn-dark btn-sm" onClick={exportAsWord}>
                 <i className="bi bi-file-word"></i> Export Word
               </button>
             </div>
@@ -169,10 +264,11 @@ const LineupView: React.FC = () => {
               </div>
             </div>
             <div className="text-end small text-muted">
-              {formatDate(row?.scheduled_at || row?.created_at) && (
+              {(row?.date || row?.scheduled_at) && (
                 <>
                   <div className="fw-bold">
-                    9:00 AM - {formatDate(row?.scheduled_at || row?.created_at)}
+                    {formatTimeString(row?.time || row?.TIME || "")} -{" "}
+                    {formatDate(row?.date || row?.scheduled_at)}
                   </div>
                 </>
               )}
@@ -216,26 +312,39 @@ const LineupView: React.FC = () => {
                             </button>
                           )}
                           {storage && (
-                            <div className="mt-2">
-                              <a
-                                href={storage}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="file-link"
-                              >
-                                <i className="bi bi-file-earmark-music"></i>{" "}
-                                {storage.includes(".pdf")
-                                  ? "Sheet Music.pdf"
-                                  : storage.includes(".mp3")
-                                  ? "Audio Guide.mp3"
-                                  : "View File"}
-                              </a>
+                            <div className="mt-2 file-links">
+                              {getFilesFromStorageField(storage).map((u, i) => (
+                                <div key={i} className="mb-1">
+                                  <a
+                                    href={u}
+                                    target="_blank"
+                                    rel="noreferrer noopener"
+                                    className="file-link d-inline-flex align-items-center"
+                                  >
+                                    <i
+                                      className={`bi ${
+                                        u.toLowerCase().endsWith(".pdf")
+                                          ? "bi-file-pdf"
+                                          : u.toLowerCase().endsWith(".doc") ||
+                                              u.toLowerCase().endsWith(".docx")
+                                            ? "bi-file-word"
+                                            : u.toLowerCase().endsWith(".svg")
+                                              ? "bi-file-earmark-image"
+                                              : "bi-file-earmark"
+                                      } me-2`}
+                                    ></i>
+                                    <span className="small">
+                                      {u.split("/").pop() || `file-${i + 1}`}
+                                    </span>
+                                  </a>
+                                </div>
+                              ))}
                             </div>
                           )}
                         </div>
                         <div className="part-time text-muted small">
-                          {p.time} -{" "}
-                          {formatDate(row?.scheduled_at || row?.created_at)}
+                          {formatTimeString(row?.time || p.time)} -{" "}
+                          {formatDate(row?.date || row?.scheduled_at)}
                         </div>
                       </div>
                       {isExpanded && lyrics && (
@@ -250,6 +359,8 @@ const LineupView: React.FC = () => {
             })}
           </div>
         )}
+
+        {/* Choir files removed per request */}
 
         {/* Back Button */}
         <div className="text-center mt-4">

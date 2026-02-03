@@ -115,7 +115,8 @@
     flex-shrink: 0;
     min-width: fit-content;
     display: flex;
-    flex-direction: row-reverse; /* Profile icon/image after text */
+    flex-direction: row-reverse;
+    /* Profile icon/image after text */
     align-items: center;
     gap: 0.5rem;
 }
@@ -143,7 +144,8 @@
         margin-top: 0.75rem;
         justify-content: flex-start;
         align-self: flex-start;
-        flex-direction: row-reverse !important; /* Keep profile after text on mobile too */
+        flex-direction: row-reverse !important;
+        /* Keep profile after text on mobile too */
     }
 
     .mass-header .d-flex.align-items-center.ms-3 .ms-2 {
@@ -242,7 +244,8 @@
     /* Keep profile section together */
     .mass-header .d-flex.align-items-center.ms-3 {
         display: flex !important;
-        flex-direction: row-reverse !important; /* Profile icon/image after text */
+        flex-direction: row-reverse !important;
+        /* Profile icon/image after text */
         align-items: center !important;
         gap: 0.5rem !important;
         width: auto !important;
@@ -356,7 +359,8 @@
     /* Keep profile section together */
     .mass-header .d-flex.align-items-center.ms-3 {
         display: flex !important;
-        flex-direction: row-reverse !important; /* Profile icon/image after text */
+        flex-direction: row-reverse !important;
+        /* Profile icon/image after text */
         align-items: center !important;
         gap: 0.5rem !important;
         width: auto !important;

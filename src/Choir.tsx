@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import "./Choir.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "./supabaseClient";
 
 interface MassPart {
@@ -44,6 +44,8 @@ interface LineupRecord {
   amenlyrics?: string;
   agnusdei?: string;
   agnusdeilyrics?: string;
+  communion?: string;
+  communionlyrics?: string;
   paternoster?: string;
   paternosterlyrics?: string;
   recession?: string;
@@ -57,11 +59,13 @@ interface LineupRecord {
   mysteriumfideistorage?: string;
   amenstorage?: string;
   agnusdeistorage?: string;
+  communionstorage?: string;
   paternosterstorage?: string;
   recessionstorage?: string;
 }
 
 const Choir: React.FC = () => {
+  const navigate = useNavigate();
   const [darkMode, _setDarkMode] = useState<boolean>(() => {
     try {
       return localStorage.getItem("soccom-dark-mode") === "true";
@@ -138,6 +142,12 @@ const Choir: React.FC = () => {
       color: "#6f42c1",
     },
     {
+      id: "paternoster",
+      title: "Pater Noster (Sapagkat)",
+      icon: "bi-music-note",
+      color: "#e74c3c",
+    },
+    {
       id: "recessional",
       title: "Recessional",
       icon: "bi-music-note",
@@ -150,6 +160,19 @@ const Choir: React.FC = () => {
   const [choirGroup, setChoirGroup] = useState("");
   const [profileUrl, setProfileUrl] = useState<string | null>(null);
 
+  // Announcements
+  interface Announcement {
+    id: number;
+    title: string;
+    content: string;
+    created_by: string;
+    created_at: string;
+    media_urls?: string | null;
+  }
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [announcementsLoading, setAnnouncementsLoading] = useState(true);
+  const [expandedImage, setExpandedImage] = useState<string | null>(null);
+
   useEffect(() => {
     try {
       const storedName = localStorage.getItem("soccom-user-name");
@@ -161,6 +184,33 @@ const Choir: React.FC = () => {
     } catch {
       /* ignore */
     }
+  }, []);
+
+  // Fetch announcements on component mount
+  useEffect(() => {
+    const fetchAnnouncements = async () => {
+      try {
+        setAnnouncementsLoading(true);
+        const { data, error } = await supabase
+          .from("announcements")
+          .select("*")
+          .eq("is_active", true)
+          .order("created_at", { ascending: false })
+          .limit(5);
+
+        if (error) {
+          console.warn("Error fetching announcements:", error);
+        } else {
+          setAnnouncements(data || []);
+        }
+      } catch (e) {
+        console.error("Error loading announcements:", e);
+      } finally {
+        setAnnouncementsLoading(false);
+      }
+    };
+
+    fetchAnnouncements();
   }, []);
 
   // Approve the next upcoming lineup entry automatically (if status is Pending)
@@ -187,6 +237,20 @@ const Choir: React.FC = () => {
   const [loadingLineups, setLoadingLineups] = useState(false);
   const [lineupsError, setLineupsError] = useState<string | null>(null);
   const [editingLineup, setEditingLineup] = useState<LineupRecord | null>(null);
+  const [showCopyModal, setShowCopyModal] = useState(false);
+  const [previousLineups, setPreviousLineups] = useState<LineupRecord[]>([]);
+  const [selectedPreviousLineup, setSelectedPreviousLineup] =
+    useState<LineupRecord | null>(null);
+  const [copyFieldsToModify, setCopyFieldsToModify] = useState<Set<string>>(
+    new Set(),
+  );
+  const [previousLineupsLoading, setPreviousLineupsLoading] = useState(false);
+
+  // Debug: Log when songsData changes
+  useEffect(() => {
+    console.log("songsData updated:", songsData);
+  }, [songsData]);
+
   // Supabase storage bucket name
   const SUPABASE_BUCKET = "PDF";
 
@@ -200,9 +264,28 @@ const Choir: React.FC = () => {
 
   const showNotification = (
     message: string,
-    type: "success" | "error" | "info"
+    type: "success" | "error" | "info",
   ) => {
     setNotification({ message, type });
+  };
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      // ignore
+    }
+    try {
+      localStorage.removeItem("soccom-user-name");
+      localStorage.removeItem("soccom-choir-group");
+      localStorage.removeItem("soccom-profile-url");
+      localStorage.removeItem("soccom-user-role");
+      localStorage.removeItem("soccom-saved-email");
+      localStorage.removeItem("soccom-saved-password");
+    } catch {
+      // ignore
+    }
+    navigate("/");
   };
 
   const fetchLineups = async () => {
@@ -264,6 +347,171 @@ const Choir: React.FC = () => {
     }
   };
 
+  const fetchPreviousLineups = async () => {
+    try {
+      setPreviousLineupsLoading(true);
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user?.email) return;
+
+      const userName =
+        name || localStorage.getItem("soccom-user-name") || user.email;
+
+      // Fetch all lineups for this user, ordered by date descending
+      const { data, error } = await supabase
+        .from("lineupinfo")
+        .select("*")
+        .eq("name", userName)
+        .order("date", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      if (error) {
+        console.error("Error fetching previous lineups:", error);
+        showNotification("Failed to load previous lineups", "error");
+        return;
+      }
+
+      if (data) {
+        setPreviousLineups(data);
+      }
+    } catch (e) {
+      console.error("Error fetching previous lineups:", e);
+      showNotification("Failed to load previous lineups", "error");
+    } finally {
+      setPreviousLineupsLoading(false);
+    }
+  };
+
+  const handleOpenCopyModal = async () => {
+    setShowCopyModal(true);
+    await fetchPreviousLineups();
+  };
+
+  const handleCopyLineup = () => {
+    if (!selectedPreviousLineup) {
+      showNotification("Please select a lineup to copy", "error");
+      return;
+    }
+
+    console.log("=== COPYING LINEUP ===");
+    console.log("Selected lineup object:", selectedPreviousLineup);
+    console.log("Fields to modify (clear):", Array.from(copyFieldsToModify));
+
+    // Copy all fields from previous lineup, then clear only those marked for modification
+    const newSongsData: Record<string, { title: string; lyrics: string }> = {};
+
+    massParts.forEach((part) => {
+      const mapping: Record<string, string> = {
+        processional: "procesional",
+        kyrie: "kyrie",
+        gloria: "gloria",
+        responsorial: "psalm",
+        alleluia: "alleluia",
+        offertory: "offertorium",
+        sanctus: "mysteriumfidei",
+        amen: "amen",
+        agnus: "agnusdei",
+        communion: "communion",
+        paternoster: "paternoster",
+        recessional: "recession",
+      };
+
+      const dbKey = mapping[part.id];
+
+      console.log(`Processing ${part.id} -> DB key: ${dbKey}`);
+      console.log(`  Title from DB: ${(selectedPreviousLineup as any)[dbKey]}`);
+      console.log(
+        `  Lyrics from DB: ${(selectedPreviousLineup as any)[`${dbKey}lyrics`]}`,
+      );
+
+      const copiedTitle =
+        (selectedPreviousLineup as any)[dbKey]?.toString() || "";
+      const copiedLyrics =
+        (selectedPreviousLineup as any)[`${dbKey}lyrics`]?.toString() || "";
+
+      // If this field is checked, copy it from previous lineup
+      // Otherwise, leave it empty for user to fill
+      if (copyFieldsToModify.has(part.id)) {
+        newSongsData[part.id] = {
+          title: copiedTitle,
+          lyrics: copiedLyrics,
+        };
+        console.log(`  -> Copied: "${copiedTitle}"`);
+      } else {
+        newSongsData[part.id] = { title: "", lyrics: "" };
+        console.log(`  -> Left empty for user input`);
+      }
+    });
+
+    console.log("=== FINAL NEW SONGS DATA ===", newSongsData);
+
+    // Clear editing mode - we're creating a new lineup, not editing
+    setEditingLineup(null);
+
+    // Clear any uploaded files from previous form
+    setSongFiles({});
+
+    // Determine mass schedule from time
+    const time = selectedPreviousLineup.time || "";
+    if (time.includes("6:00") && !time.includes("PM")) {
+      setSelectedMass("6:00 AM");
+    } else if (time.includes("7:30")) {
+      setSelectedMass("7:30 AM");
+    } else if (time.includes("9:00")) {
+      setSelectedMass("9:00 AM");
+    } else if (time.includes("10:30")) {
+      setSelectedMass("10:30 AM");
+    } else if (time.includes("5:00")) {
+      setSelectedMass("5:00 PM");
+    } else if (time.includes("6:00 PM") || time.includes("18:00")) {
+      setSelectedMass("6:00 PM");
+    }
+
+    // Copy the mass time and date from the selected lineup
+    setSelectedTime(selectedPreviousLineup.time || "");
+    setSelectedDate(selectedPreviousLineup.date || "");
+
+    // IMPORTANT: Update songs data with copied lineup - use callback to ensure fresh state
+    setSongsData(() => {
+      console.log("=== SETTING SONGS DATA ===", newSongsData);
+      return { ...newSongsData };
+    });
+
+    // Close modal and reset
+    setShowCopyModal(false);
+    setSelectedPreviousLineup(null);
+    setCopyFieldsToModify(new Set());
+
+    const copiedCount = copyFieldsToModify.size;
+    const emptyCount = massParts.length - copiedCount;
+
+    // Scroll to top and verify data is in the form
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      
+      // Log current state after update
+      console.log("=== AFTER STATE UPDATE ===");
+      console.log("Selected Mass:", selectedMass);
+      console.log("Selected Date:", selectedDate);
+      console.log("Selected Time:", selectedTime);
+      
+      showNotification(
+        copiedCount === massParts.length
+          ? `✓ All ${massParts.length} fields copied!`
+          : copiedCount > 0
+          ? `✓ ${copiedCount} field(s) copied, ${emptyCount} left empty for you to fill.`
+          : `✓ All fields empty - ready for manual entry.`,
+        "success",
+      );
+    }, 100);
+  };
+
+  const availablePreviousLineups =
+    previousLineups.length > 0 ? previousLineups : lineups;
+
   const canEditLineup = (massDate: string): boolean => {
     const mass = new Date(massDate);
     const now = new Date();
@@ -275,7 +523,7 @@ const Choir: React.FC = () => {
     if (!canEditLineup(lineup.date)) {
       showNotification(
         "Cannot edit lineup less than 24 hours before mass",
-        "error"
+        "error",
       );
       return;
     }
@@ -291,7 +539,8 @@ const Choir: React.FC = () => {
       mysteriumfidei: "sanctus",
       amen: "amen",
       agnusdei: "agnus",
-      paternoster: "communion",
+      communion: "communion",
+      paternoster: "paternoster",
       recession: "recessional",
     };
 
@@ -343,7 +592,7 @@ const Choir: React.FC = () => {
       if (!selectedDate) {
         showNotification(
           "Please select a mass date before uploading files",
-          "error"
+          "error",
         );
         return null;
       }
@@ -356,7 +605,7 @@ const Choir: React.FC = () => {
       if (!user?.email) {
         showNotification(
           "Error: You must be logged in to upload files",
-          "error"
+          "error",
         );
         return null;
       }
@@ -408,7 +657,7 @@ const Choir: React.FC = () => {
         ) {
           showNotification(
             "Upload permission denied. Please contact the administrator to enable storage access for the 'PDF' bucket.",
-            "error"
+            "error",
           );
         } else {
           showNotification(`Failed to upload: ${res.error.message}`, "error");
@@ -427,7 +676,7 @@ const Choir: React.FC = () => {
       console.error("Upload error:", e);
       showNotification(
         `Error uploading: ${e?.message || "Unknown error"}`,
-        "error"
+        "error",
       );
       return null;
     }
@@ -435,7 +684,7 @@ const Choir: React.FC = () => {
 
   const handleFileChange = async (
     partId: string,
-    event: React.ChangeEvent<HTMLInputElement>
+    event: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
@@ -445,15 +694,16 @@ const Choir: React.FC = () => {
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
 
-      // Only allow PDF and Word files
+      // Only allow PDF, Word and SVG files
       if (
         !file.type.match(
-          "application/pdf|application/msword|application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        )
+          "application/pdf|application/msword|application/vnd.openxmlformats-officedocument.wordprocessingml.document|image/svg+xml",
+        ) &&
+        !file.name.toLowerCase().endsWith(".svg")
       ) {
         showNotification(
-          `Skipped ${file.name}: Only PDF or Word documents allowed`,
-          "error"
+          `Skipped ${file.name}: Only PDF, Word or SVG documents allowed`,
+          "error",
         );
         continue;
       }
@@ -473,7 +723,7 @@ const Choir: React.FC = () => {
 
       showNotification(
         `${newFiles.length} file(s) added. They will be uploaded when you submit.`,
-        "info"
+        "info",
       );
     }
 
@@ -540,12 +790,12 @@ const Choir: React.FC = () => {
 
       if (
         !file.type.match(
-          "application/pdf|application/msword|application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          "application/pdf|application/msword|application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         )
       ) {
         showNotification(
           `Skipped ${file.name}: Only PDF or Word documents allowed`,
-          "error"
+          "error",
         );
         continue;
       }
@@ -565,7 +815,7 @@ const Choir: React.FC = () => {
 
       showNotification(
         `${newFiles.length} file(s) added. They will be uploaded when you submit.`,
-        "info"
+        "info",
       );
     }
   };
@@ -573,7 +823,7 @@ const Choir: React.FC = () => {
   const updateSongField = (
     partId: string,
     field: "title" | "lyrics",
-    value: string
+    value: string,
   ) => {
     setSongsData((prev) => ({
       ...prev,
@@ -601,7 +851,7 @@ const Choir: React.FC = () => {
 
     // Check if at least one song title is filled
     const hasAnySong = massParts.some((part) =>
-      songsData[part.id]?.title?.trim()
+      songsData[part.id]?.title?.trim(),
     );
     if (!hasAnySong) {
       showNotification("Please enter at least one song title", "error");
@@ -682,7 +932,8 @@ const Choir: React.FC = () => {
         sanctus: "MysteriumFidei",
         amen: "Amen",
         agnus: "AgnusDei",
-        communion: "PaterNoster",
+        communion: "Communion",
+        paternoster: "PaterNoster",
         recessional: "Recession",
       };
 
@@ -732,7 +983,7 @@ const Choir: React.FC = () => {
       if (res.error) {
         console.warn(
           editingLineup ? "update error" : "insert error",
-          res.error
+          res.error,
         );
         showNotification("Failed to save lineup to database", "error");
       } else {
@@ -740,7 +991,7 @@ const Choir: React.FC = () => {
           editingLineup
             ? "Lineup updated successfully!"
             : "Lineup saved successfully!",
-          "success"
+          "success",
         );
 
         // Clear form after successful submission
@@ -770,8 +1021,8 @@ const Choir: React.FC = () => {
             notification.type === "success"
               ? "success"
               : notification.type === "error"
-              ? "danger"
-              : "info"
+                ? "danger"
+                : "info"
           } alert-dismissible fade show shadow-lg`}
           style={{ zIndex: 9999, minWidth: "300px" }}
           role="alert"
@@ -782,8 +1033,8 @@ const Choir: React.FC = () => {
                 notification.type === "success"
                   ? "bi-check-circle-fill"
                   : notification.type === "error"
-                  ? "bi-exclamation-triangle-fill"
-                  : "bi-info-circle-fill"
+                    ? "bi-exclamation-triangle-fill"
+                    : "bi-info-circle-fill"
               } me-2`}
             ></i>
             <span>{notification.message}</span>
@@ -799,7 +1050,110 @@ const Choir: React.FC = () => {
 
       <div className="container-fluid">
         <div className="row justify-content-center">
-          <div className="col-12 col-xl-9">
+          {/* Announcements Panel - Left Side */}
+          <div className="col-12 col-lg-3 mb-4">
+            <div className="card announcements-panel">
+              <div className="card-header bg-primary text-white">
+                <i className="bi bi-megaphone-fill me-2"></i>
+                <span>Announcements</span>
+              </div>
+              <div className="card-body p-0">
+                {announcementsLoading ? (
+                  <div className="text-center p-3">
+                    <div
+                      className="spinner-border spinner-border-sm text-primary"
+                      role="status"
+                    >
+                      <span className="visually-hidden">Loading...</span>
+                    </div>
+                  </div>
+                ) : announcements.length === 0 ? (
+                  <div className="p-3 text-center text-muted small">
+                    <i className="bi bi-inbox fs-4 d-block mb-2"></i>
+                    <p className="mb-0">No announcements at this time</p>
+                  </div>
+                ) : (
+                  <div
+                    className="announcement-list"
+                    style={{ maxHeight: "500px", overflowY: "auto" }}
+                  >
+                    {announcements.map((announcement) => {
+                      let mediaUrls: string[] = [];
+                      if (announcement.media_urls) {
+                        try {
+                          mediaUrls = JSON.parse(announcement.media_urls);
+                        } catch (e) {
+                          // ignore
+                        }
+                      }
+                      return (
+                        <div
+                          key={announcement.id}
+                          className="announcement-item border-bottom p-3"
+                        >
+                          <h6 className="mb-2 text-primary">
+                            <i className="bi bi-pin-fill me-2"></i>
+                            {announcement.title}
+                          </h6>
+                          <p className="mb-2 small">{announcement.content}</p>
+                          {mediaUrls.length > 0 && (
+                            <div className="mt-2 mb-2">
+                              {mediaUrls.map((url, idx) => {
+                                const isImage =
+                                  /\.(jpg|jpeg|png|gif|webp)$/i.test(url);
+                                return isImage ? (
+                                  <div
+                                    key={`${announcement.id}-img-${idx}`}
+                                    style={{
+                                      cursor: "pointer",
+                                      display: "inline-block",
+                                    }}
+                                    onClick={() => setExpandedImage(url)}
+                                  >
+                                    <img
+                                      src={url}
+                                      alt="Announcement"
+                                      className="img-fluid rounded mb-2"
+                                      style={{
+                                        maxWidth: "100%",
+                                        maxHeight: "200px",
+                                        border: "2px solid #dee2e6",
+                                        cursor: "pointer",
+                                      }}
+                                    />
+                                  </div>
+                                ) : (
+                                  <a
+                                    key={`${announcement.id}-file-${idx}`}
+                                    href={url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="btn btn-sm btn-outline-primary me-2 mb-2"
+                                  >
+                                    <i className="bi bi-file-download me-1"></i>
+                                    Download
+                                  </a>
+                                );
+                              })}
+                            </div>
+                          )}
+                          <small className="text-muted">
+                            By {announcement.created_by} •{" "}
+                            {new Date(
+                              announcement.created_at,
+                            ).toLocaleDateString()}
+                          </small>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Main Content Area */}
+          <div className="col-12 col-lg-9">
             <div className="mass-card">
               {/* Updated header section */}
               <div className="mass-header px-3">
@@ -819,9 +1173,7 @@ const Choir: React.FC = () => {
                       </h5>
                       <div className="text-muted small">
                         {editingLineup
-                          ? `Mass on ${new Date(
-                              editingLineup.date
-                            ).toLocaleDateString()}`
+                          ? `Mass on ${editingLineup.date}`
                           : "Plan your choir's lineup"}
                       </div>
                     </div>
@@ -837,6 +1189,14 @@ const Choir: React.FC = () => {
                     >
                       <i className="bi bi-list-ul me-2"></i>
                       View Lineups
+                    </button>
+
+                    <button
+                      className="btn btn-outline-secondary btn-sm"
+                      onClick={() => handleLogout()}
+                    >
+                      <i className="bi bi-box-arrow-right me-2"></i>
+                      Logout
                     </button>
 
                     <div className="d-flex align-items-center">
@@ -925,7 +1285,7 @@ const Choir: React.FC = () => {
                                 updateSongField(
                                   part.id,
                                   "title",
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                               disabled={submitting}
@@ -939,7 +1299,7 @@ const Choir: React.FC = () => {
                                 updateSongField(
                                   part.id,
                                   "lyrics",
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                               disabled={submitting}
@@ -972,9 +1332,21 @@ const Choir: React.FC = () => {
                                         <>
                                           <i
                                             className={`bi ${
-                                              fileObj.file.type.includes("pdf")
+                                              fileObj.file.type.includes(
+                                                "pdf",
+                                              ) ||
+                                              fileObj.file.name
+                                                .toLowerCase()
+                                                .endsWith(".pdf")
                                                 ? "bi-file-pdf"
-                                                : "bi-file-word"
+                                                : fileObj.file.type.includes(
+                                                      "svg",
+                                                    ) ||
+                                                    fileObj.file.name
+                                                      .toLowerCase()
+                                                      .endsWith(".svg")
+                                                  ? "bi-file-earmark-image"
+                                                  : "bi-file-word"
                                             } ${
                                               fileObj.uploaded
                                                 ? "text-success"
@@ -1083,7 +1455,7 @@ const Choir: React.FC = () => {
                                 id={`file-${part.id}`}
                                 type="file"
                                 className="d-none"
-                                accept=".pdf,.doc,.docx"
+                                accept=".pdf,.doc,.docx,.svg"
                                 multiple
                                 disabled={submitting}
                                 onChange={(e) => handleFileChange(part.id, e)}
@@ -1140,6 +1512,14 @@ const Choir: React.FC = () => {
                       Cancel Edit
                     </button>
                   )}
+                  <button
+                    className="btn btn-outline-info"
+                    onClick={() => handleOpenCopyModal()}
+                    disabled={submitting}
+                  >
+                    <i className="bi bi-files me-2"></i>
+                    Copy Previous Lineup
+                  </button>
                   <Link to="/" className="btn btn-outline-secondary">
                     Back
                   </Link>
@@ -1222,6 +1602,7 @@ const Choir: React.FC = () => {
                             lineup.mysteriumfidei,
                             lineup.amen,
                             lineup.agnusdei,
+                            (lineup as any).communion,
                             lineup.paternoster,
                             lineup.recession,
                           ].filter(Boolean).length;
@@ -1229,17 +1610,7 @@ const Choir: React.FC = () => {
                           return (
                             <tr key={lineup.id}>
                               <td>
-                                <strong>
-                                  {new Date(lineup.date).toLocaleDateString(
-                                    "en-US",
-                                    {
-                                      weekday: "short",
-                                      year: "numeric",
-                                      month: "short",
-                                      day: "numeric",
-                                    }
-                                  )}
-                                </strong>
+                                <strong>{lineup.date}</strong>
                               </td>
                               <td>
                                 <i className="bi bi-clock me-2 text-primary"></i>
@@ -1251,9 +1622,7 @@ const Choir: React.FC = () => {
                                 </span>
                               </td>
                               <td className="text-muted small">
-                                {new Date(lineup.created_at).toLocaleDateString(
-                                  "en-US"
-                                )}
+                                {lineup.created_at.split("T")[0]}
                               </td>
                               <td>
                                 {canEdit ? (
@@ -1291,6 +1660,236 @@ const Choir: React.FC = () => {
                 >
                   Close
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Expanded Image Modal */}
+      {/* Copy Lineup Modal */}
+      {showCopyModal && (
+        <div
+          className="modal fade show d-block"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+          tabIndex={-1}
+        >
+          <div className="modal-dialog modal-lg modal-dialog-scrollable">
+            <div className="modal-content">
+              <div className="modal-header bg-primary text-white">
+                <h5 className="modal-title">
+                  <i className="bi bi-files me-2"></i>
+                  Copy Previous Week Lineup
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close btn-close-white"
+                  onClick={() => {
+                    setShowCopyModal(false);
+                    setSelectedPreviousLineup(null);
+                    setCopyFieldsToModify(new Set());
+                  }}
+                ></button>
+              </div>
+              <div className="modal-body">
+                <p className="text-muted mb-3">
+                  Select a previous lineup to copy to this week. You can choose
+                  which fields to copy and which to modify.
+                </p>
+
+                {previousLineupsLoading ? (
+                  <div className="text-center p-3">
+                    <div
+                      className="spinner-border spinner-border-sm text-primary"
+                      role="status"
+                    >
+                      <span className="visually-hidden">Loading...</span>
+                    </div>
+                  </div>
+                ) : availablePreviousLineups.length === 0 ? (
+                  <div className="alert alert-info">
+                    <i className="bi bi-info-circle me-2"></i>
+                    No previous lineups found
+                  </div>
+                ) : (
+                  <>
+                    <div className="mb-3">
+                      <label className="form-label fw-bold">
+                        Select Lineup to Copy
+                      </label>
+                      <select
+                        className="form-select"
+                        value={
+                          selectedPreviousLineup
+                            ? String(selectedPreviousLineup.id)
+                            : ""
+                        }
+                        onChange={(e) => {
+                          const selectedId = e.target.value;
+                          if (!selectedId) {
+                            setSelectedPreviousLineup(null);
+                            return;
+                          }
+                          const selected = availablePreviousLineups.find(
+                            (l) => String(l.id) === selectedId,
+                          );
+                          setSelectedPreviousLineup(selected || null);
+                        }}
+                      >
+                        <option value="">-- Select a lineup --</option>
+                        {availablePreviousLineups.map((lineup) => (
+                          <option key={lineup.id} value={String(lineup.id)}>
+                            {lineup.date} - {lineup.time} (Created:{" "}
+                            {new Date(lineup.created_at).toLocaleDateString()})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {selectedPreviousLineup && (
+                      <div className="mb-3">
+                        <label className="form-label fw-bold">
+                          Select Fields to Copy
+                        </label>
+                        <div className="alert alert-info py-2 px-3 mb-2">
+                          <i className="bi bi-info-circle me-2"></i>
+                          <strong>How it works:</strong>
+                          <ul className="mb-0 mt-1 small">
+                            <li>
+                              <strong>Check fields</strong> = Copy those fields from the previous lineup
+                            </li>
+                            <li>
+                              <strong>Leave unchecked</strong> = Those fields will be empty for you to fill in manually
+                            </li>
+                            <li>
+                              Example: Check all except "Communion" if that's the only part that changes
+                            </li>
+                          </ul>
+                        </div>
+
+                        {/* Select All checkbox */}
+                        <div className="mb-3 border-bottom pb-2">
+                          <div className="form-check">
+                            <input
+                              className="form-check-input"
+                              type="checkbox"
+                              id="copy-field-select-all"
+                              checked={
+                                copyFieldsToModify.size === massParts.length
+                              }
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  // Select all fields to copy
+                                  const allFields = new Set(
+                                    massParts.map((p) => p.id),
+                                  );
+                                  setCopyFieldsToModify(allFields);
+                                } else {
+                                  // Deselect all fields (start fresh)
+                                  setCopyFieldsToModify(new Set());
+                                }
+                              }}
+                            />
+                            <label
+                              className="form-check-label fw-bold text-success"
+                              htmlFor="copy-field-select-all"
+                            >
+                              Select All (Copy Everything)
+                            </label>
+                          </div>
+                        </div>
+
+                        <div className="row">
+                          {massParts.map((part) => (
+                            <div key={part.id} className="col-md-6 mb-2">
+                              <div className="form-check">
+                                <input
+                                  className="form-check-input"
+                                  type="checkbox"
+                                  id={`copy-field-${part.id}`}
+                                  checked={copyFieldsToModify.has(part.id)}
+                                  onChange={(e) => {
+                                    const updated = new Set(copyFieldsToModify);
+                                    if (e.target.checked) {
+                                      updated.add(part.id);
+                                    } else {
+                                      updated.delete(part.id);
+                                    }
+                                    setCopyFieldsToModify(updated);
+                                  }}
+                                />
+                                <label
+                                  className="form-check-label"
+                                  htmlFor={`copy-field-${part.id}`}
+                                >
+                                  {part.title}
+                                </label>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <small className="text-muted d-block mt-2">
+                          ℹ️ Check all fields to copy everything. Uncheck fields like "Communion" to enter them manually.
+                        </small>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setShowCopyModal(false);
+                    setSelectedPreviousLineup(null);
+                    setCopyFieldsToModify(new Set());
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => handleCopyLineup()}
+                  disabled={!selectedPreviousLineup}
+                >
+                  <i className="bi bi-check-circle me-2"></i>
+                  Copy Lineup
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Expanded Image Modal */}
+      {expandedImage && (
+        <div
+          className="modal d-block"
+          style={{ backgroundColor: "rgba(0,0,0,0.7)", zIndex: 9999 }}
+          onClick={() => setExpandedImage(null)}
+        >
+          <div className="modal-dialog modal-dialog-centered modal-lg">
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={() => setExpandedImage(null)}
+                ></button>
+              </div>
+              <div className="modal-body d-flex justify-content-center">
+                <img
+                  src={expandedImage}
+                  alt="Expanded announcement"
+                  style={{
+                    maxWidth: "100%",
+                    maxHeight: "80vh",
+                    borderRadius: "8px",
+                    border: "2px solid #dee2e6",
+                  }}
+                />
               </div>
             </div>
           </div>

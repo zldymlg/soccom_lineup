@@ -2,8 +2,10 @@ import { useState, useEffect } from "react";
 import "./Login.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import backgroundImage from "./assets/Background1.jpg";
+import soccomLogo from "./assets/SOCCOM.png";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "./supabaseClient";
+import { BeatLoader } from "react-spinners";
 
 type LineupRow = {
   NAME?: string | null;
@@ -28,6 +30,7 @@ function App() {
   const [password, setPassword] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [rememberMe, setRememberMe] = useState(false);
   const navigate = useNavigate();
 
   // persist darkMode whenever it changes
@@ -40,10 +43,109 @@ function App() {
   }, [darkMode]);
 
   useEffect(() => {
-    // simulate welcome/loading screen
-    const t = setTimeout(() => setLoading(false), 2300);
-    return () => clearTimeout(t);
-  }, []);
+    // Check for existing session and restore user if logged in
+    const checkExistingSession = async () => {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (session?.user?.email) {
+          // User has an active session, redirect them
+          await redirectUser(session.user.email);
+          return;
+        }
+      } catch (error) {
+        console.error("Error checking session:", error);
+      }
+
+      // No active session, load saved credentials if "remember me" was checked
+      try {
+        const savedEmail = localStorage.getItem("soccom-saved-email");
+        const savedPassword = localStorage.getItem("soccom-saved-password");
+        if (savedEmail && savedPassword) {
+          setEmail(savedEmail);
+          setPassword(savedPassword);
+          setRememberMe(true);
+        }
+      } catch {
+        /* ignore storage errors */
+      }
+
+      // Simulate welcome/loading screen
+      const t = setTimeout(() => setLoading(false), 2300);
+      return () => clearTimeout(t);
+    };
+
+    checkExistingSession();
+  }, [navigate]);
+
+  // Helper function to redirect user based on their position
+  const redirectUser = async (userEmail: string) => {
+    try {
+      const rowResult = await supabase
+        .from("LINEUP")
+        .select("NAME,POSITION,EMAIL,PROFILE")
+        .eq("EMAIL", userEmail)
+        .maybeSingle();
+
+      const row = rowResult.data as LineupRow | null;
+      if (rowResult.error) {
+        console.warn("LINEUP lookup error", rowResult.error);
+        return;
+      }
+
+      if (row) {
+        const position = row.POSITION
+          ? String(row.POSITION).toLowerCase().trim()
+          : "";
+
+        // Persist user data
+        if (row.NAME) localStorage.setItem("soccom-user-name", row.NAME);
+        if (row.POSITION)
+          localStorage.setItem("soccom-choir-group", row.POSITION);
+
+        // Resolve profile URL
+        const profileField = row.PROFILE;
+        if (profileField) {
+          let resolved = profileField;
+          if (!/^https?:\/\//i.test(profileField)) {
+            const buckets = ["profiles", "avatars", "public", "lineup"];
+            for (const b of buckets) {
+              try {
+                const pData = supabase.storage
+                  .from(b)
+                  .getPublicUrl(profileField);
+                if ((pData as any)?.data?.publicUrl) {
+                  resolved = (pData as any).data.publicUrl;
+                  break;
+                }
+              } catch (e) {
+                /* ignore and continue */
+              }
+            }
+          }
+          localStorage.setItem("soccom-profile-url", resolved);
+        }
+
+        // Navigate based on position
+        setNavigating(true);
+        const redirectPath =
+          position === "soccom"
+            ? "/soccom"
+            : position === "choir"
+              ? "/choir"
+              : position === "admin"
+                ? "/admin"
+                : null;
+
+        if (redirectPath) {
+          setTimeout(() => navigate(redirectPath), 2300);
+        }
+      }
+    } catch (error) {
+      console.error("Error redirecting user:", error);
+    }
+  };
 
   // Handle sign-in and LINEUP lookup
   const handleSubmit = async (e: React.FormEvent) => {
@@ -54,7 +156,24 @@ function App() {
       const res = await supabase.auth.signInWithPassword({ email, password });
       if (res.error) throw res.error;
 
-      // After successful sign in, check LINEUP table for the user's info
+      // Save credentials if "remember me" is checked
+      if (rememberMe) {
+        try {
+          localStorage.setItem("soccom-saved-email", email);
+          localStorage.setItem("soccom-saved-password", password);
+        } catch {
+          /* ignore storage errors */
+        }
+      } else {
+        // Clear saved credentials if "remember me" is unchecked
+        try {
+          localStorage.removeItem("soccom-saved-email");
+          localStorage.removeItem("soccom-saved-password");
+        } catch {
+          /* ignore storage errors */
+        }
+      }
+
       const rowResult = await supabase
         .from("LINEUP")
         .select("NAME,POSITION,EMAIL,PROFILE")
@@ -63,8 +182,6 @@ function App() {
 
       const row = rowResult.data as LineupRow | null;
       if (rowResult.error) {
-        // non-fatal: warn and continue
-        // eslint-disable-next-line no-console
         console.warn("LINEUP lookup error", rowResult.error);
       }
 
@@ -82,7 +199,7 @@ function App() {
             localStorage.removeItem("soccom-profile-url");
           } catch {}
           setAuthError(
-            "Access restricted: members are not allowed to use this form."
+            "Access restricted: members are not allowed to use this form.",
           );
           try {
             await supabase.auth.signOut();
@@ -161,6 +278,42 @@ function App() {
           return;
         }
 
+        if (position === "admin") {
+          // Persist name and profile for admin users
+          if (row.NAME) localStorage.setItem("soccom-user-name", row.NAME);
+          if (row.POSITION)
+            localStorage.setItem("soccom-choir-group", row.POSITION);
+
+          // Resolve profile: if it's already a URL use it, else try storage buckets
+          const profileField = row.PROFILE;
+          if (profileField) {
+            let resolved = profileField;
+            if (!/^https?:\/\//i.test(profileField)) {
+              // try common buckets
+              const buckets = ["profiles", "avatars", "public", "lineup"];
+              for (const b of buckets) {
+                try {
+                  const pData = supabase.storage
+                    .from(b)
+                    .getPublicUrl(profileField);
+                  if ((pData as any)?.data?.publicUrl) {
+                    resolved = (pData as any).data.publicUrl;
+                    break;
+                  }
+                } catch (e) {
+                  // ignore and continue
+                }
+              }
+            }
+            localStorage.setItem("soccom-profile-url", resolved);
+          }
+
+          // navigate to admin page with loading screen
+          setNavigating(true);
+          setTimeout(() => navigate("/admin"), 2300);
+          return;
+        }
+
         // Otherwise deny access for any other positions
         try {
           localStorage.removeItem("soccom-user-name");
@@ -168,7 +321,7 @@ function App() {
           localStorage.removeItem("soccom-profile-url");
         } catch {}
         setAuthError(
-          "Access restricted: only users with the 'choir' or 'soccom' roles can access this system."
+          "Access restricted: only users with the 'admin', 'choir' or 'soccom' roles can access this system.",
         );
         try {
           await supabase.auth.signOut();
@@ -186,22 +339,25 @@ function App() {
   return (
     <>
       {(loading || navigating) && (
-        <div className="welcome-screen">
-          <div className="welcome-content">
-            <div className="logo-container">
-              <div className="logo-circle">
-                <i className="bi bi-bank logo-icon"></i>
-              </div>
-              <div className="pulse-ring"></div>
-              <div className="pulse-ring-delayed"></div>
-            </div>
-            <h1 className="welcome-title">SOCCOM</h1>
-            <p className="welcome-subtitle">Social Communication Commission</p>
-            <div className="loading-dots">
-              <span className="dot"></span>
-              <span className="dot"></span>
-              <span className="dot"></span>
-            </div>
+        <div className={`loading-overlay ${darkMode ? "dark" : "light"}`}>
+          <div className="loading-header">
+            <img src={soccomLogo} alt="SOCCOM Logo" className="loading-logo" />
+            <h1 className={`loading-title ${darkMode ? "dark" : "light"}`}>
+              SOCCOM
+            </h1>
+            <p className={`loading-subtitle ${darkMode ? "dark" : "light"}`}>
+              Choir Lineup Management
+            </p>
+          </div>
+          <div className="loading-content">
+            <BeatLoader
+              color={darkMode ? "#4a9eff" : "#0d6efd"}
+              size={10}
+              speedMultiplier={0.85}
+            />
+            <p className={`loading-text ${darkMode ? "dark" : "light"}`}>
+              Loading your dashboard
+            </p>
           </div>
         </div>
       )}
@@ -248,7 +404,7 @@ function App() {
                       darkMode ? "text-light" : "text-dark"
                     }`}
                   >
-                    COMMISSION ON SOCIAL COMMUNICATION
+                    COMMISSION ON SOCIAL COMMUNICATIONS
                   </h3>
                   <small
                     className={`text-center mb-3 d-block ${
@@ -342,6 +498,8 @@ function App() {
                             type="checkbox"
                             className="form-check-input"
                             id="rememberMe"
+                            checked={rememberMe}
+                            onChange={(e) => setRememberMe(e.target.checked)}
                           />
                           <label
                             className="form-check-label"
